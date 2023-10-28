@@ -17,7 +17,7 @@ class hass_influx:
 		if self.hass_host:
 			try:
 				ret = self.hass_s.post(
-					self.hass_host + "/api/states/sensor.%s" % hass_id, 
+					"http://" + self.hass_host + ":8123/api/states/sensor.%s" % hass_id,
 					data=("""
 					{
 						"state": "%s",
@@ -28,11 +28,11 @@ class hass_influx:
 					}
 					""" % (str_value, unit, hass_name) ))
 				if not (ret.status_code == 200):
-					print ret
-	
+					print (ret)
+
 			except Exception as e:
-				print hass_id, hass_name, str_value, unit
-				print "Failed HASS: %s" % e
+				print (hass_id, hass_name, str_value, unit)
+				print ("Failed HASS: %s" % e)
 
 	def post_influx(self, meas_type, name, value, ts=time.time()):
 		if self.influx_host and self.influx_db:
@@ -42,7 +42,7 @@ class hass_influx:
 				params={'db': self.influx_db}, 
 				data=post_data)
 			if self.print_post:
-				print post_data
+				print (post_data)
 
 	def post(self, ident, type_, value, hass_name="", hass_unit="", ts=time.time()):
 		self.post_influx(type_, ident, value, ts)

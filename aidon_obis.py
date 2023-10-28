@@ -5,8 +5,8 @@
 import struct, crcmod
 
 # HDLC constants
-FLAG = '\x7e'
-ESCAPE = '\x7d'
+FLAG = b'\x7e'
+ESCAPE = b'\x7d'
 
 # HDLC states
 WAITING = 0
@@ -19,18 +19,25 @@ OBJECTS_10SEC = 12
 OBJECTS_1HOUR = 17
 
 # OBIS types
-TYPE_STRING = 0x0a
+TYPE_STRING = 0x0d
 TYPE_UINT32 = 0x06
 TYPE_INT16 = 0x10
 TYPE_OCTETS = 0x09
 TYPE_UINT16 = 0x12
 
+def no_ord(x):
+	return x
+
 class aidon:
 	def __init__(self, callback):
 		self.state = WAITING
-		self.pkt = ""
+		self.pkt = b""
 		self.crc_func = crcmod.mkCrcFun(0x11021, rev=True, initCrc=0xffff, xorOut=0x0000)
 		self.callback = callback
+
+	def get_pkt_len(self, pkt):
+		length = ((no_ord(pkt[0]) & 0x07) << 8) + no_ord(pkt[1])
+		return length
 
 	# Does a lot of assumptions on Aidon/Hafslund COSEM format
 	# Not a general parser! 
@@ -43,26 +50,28 @@ class aidon:
 		# 6,7 HCS
 		# 8,9,10 LLC
 
-		frame_type = (ord(pkt[0]) & 0xf0) >> 4
-		length = ((ord(pkt[0]) & 0x07) << 8) + ord(pkt[1])
-		object_count = ord(pkt[18])
+		frame_type = (no_ord(pkt[0]) & 0xf0) >> 4
+		length = self.get_pkt_len(pkt)
+		print("LENGTH: %d == %d" %(length, len(pkt)))
+		object_count = no_ord(pkt[18])
 		pkt = pkt[19:] # Remove 18 first bytes to start with first object
 
 		fields = {}
 
 		# If number of objects doesn't match any known type, don't continue
 		if not (object_count in [OBJECTS_2P5SEC, OBJECTS_10SEC, OBJECTS_1HOUR]):
+			print("UNKNOWN OBJECT")
 			return
 
 		# Fill array with objects
 		data = []
 		for j in range(0, object_count):
-			dtype = ord(pkt[10])
-			
+			dtype = no_ord(pkt[10])
+
 			if (dtype == TYPE_STRING):
-				size = ord(pkt[11])
-				data.append(pkt[12:12+size])
-				pkt = pkt[12+size:]
+				size = no_ord(pkt[12])
+				data.append(pkt[13:13+size])
+				pkt = pkt[13+size:]
 
 			elif (dtype == TYPE_UINT32):
 				data.append(struct.unpack(">I", pkt[11:15])[0])
@@ -73,7 +82,7 @@ class aidon:
 				pkt = pkt[19:]
 
 			elif (dtype == TYPE_OCTETS):
-				size = ord(pkt[11])
+				size = no_ord(pkt[11])
 				data.append(pkt[12:12+size])
 				pkt = pkt[12+size:]
 
@@ -82,6 +91,7 @@ class aidon:
 				pkt = pkt[19:]
 
 			else:
+				print("UNKNOWN TYPE: 0x%x" %dtype)
 				return # Unknown type, cancel
 	
 		# Convert array with generic types to dictionary with sensible keys
@@ -116,7 +126,7 @@ class aidon:
 		if (self.state == WAITING): 
 			if (c == FLAG):
 				self.state = DATA
-				self.pkt = ""
+				self.pkt = b""
 
 		elif (self.state == DATA):
 			if (c == FLAG):
@@ -125,15 +135,30 @@ class aidon:
 					# Check CRC
 					crc = self.crc_func(self.pkt[:-2])
 					crc ^= 0xffff
-					if (crc == struct.unpack("<H", self.pkt[-2:])[0]):
-						self.parse(self.pkt)
-				self.pkt = ""
+					crc_in_frame = struct.unpack("<H", self.pkt[-2:])[0]
+					if (crc == crc_in_frame):
+						try:
+							self.parse(self.pkt)
+						except:
+							print("Parsing exception, CRC OK")
+					else:
+						while len(self.pkt) > self.get_pkt_len(self.pkt):
+							self.pkt = self.pkt[:-1]
+						crc = self.crc_func(self.pkt[:-2])
+						crc ^= 0xffff
+						crc_in_frame = struct.unpack("<H", self.pkt[-2:])[0]
+						try:
+							self.parse(self.pkt)
+						except:
+							print("Parsing exception, CRC NOT OK")
+				self.pkt = b""
 			elif (c == ESCAPE):
 				self.state = ESCAPED
 			else:
 				self.pkt += c
 
 		elif (self.state == ESCAPED):
-			self.pkt += chr(ord(c) ^ 0x20)
+			i = int.from_bytes(c, 'big')
+			self.pkt += (i ^ 0x20).to_bytes(1, 'big')
 			self.state = DATA
 

@@ -19,7 +19,7 @@ hi = hass_influx(
 	hass_host=args.hass_host,
 	hass_token=args.hass_token)
 
-ser = serial.Serial(args.serial_port, 2400, timeout=0.05, parity=serial.PARITY_NONE)
+ser = serial.Serial(args.serial_port, 115200, timeout=0.05, parity=serial.PARITY_NONE)
 
 def aidon_callback(fields):
 	ts = time.time()
