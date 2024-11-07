@@ -28,6 +28,8 @@ def aidon_callback(fields):
 		hi.post("aidon", "energy", "%.02f" % fields['energy_act_in'], hass_name="Energi", hass_unit="kWh", ts=ts)
 
 def main():
+	global parser, hi
+
 	parser = argparse.ArgumentParser(description='Forward Aidon data to Home Assistant and InfluxDB')
 	parser.add_argument('serial_port')
 	parser.add_argument('--influx_host')
