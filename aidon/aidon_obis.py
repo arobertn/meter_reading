@@ -139,8 +139,8 @@ class aidon:
 					if (crc == crc_in_frame):
 						try:
 							self.parse(self.pkt)
-						except:
-							print("Parsing exception, CRC OK")
+						except Exception as e:
+							print("Parsing exception, CRC OK: " + str(e))
 					else:
 						while len(self.pkt) > self.get_pkt_len(self.pkt):
 							self.pkt = self.pkt[:-1]
