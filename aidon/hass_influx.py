@@ -10,6 +10,8 @@ class hass_influx:
 
 		self.influx_host = inf_host
 		self.influx_db = inf_db
+		self.influx_s = requests.Session()
+		self.influx_s.headers.update({'Authorization': 'Token %s' % hass_token})
 
 		self.print_post = print_post
 
@@ -38,11 +40,12 @@ class hass_influx:
 		if self.influx_host and self.influx_db:
 			post_data = "%s,dev=%s value=%s %u" % \
 				(meas_type, name, value, ts*1000000000)	
-			status = requests.post(self.influx_host + '/write',
+			status = self.influx_s.post(self.influx_host + '/write',
 				params={'db': self.influx_db}, 
 				data=post_data)
 			if self.print_post:
 				print (post_data)
+				print ("status: " + str(status.status_code) + "; " + str(status.text))
 
 	def post(self, ident, type_, value, hass_name="", hass_unit="", ts=time.time()):
 		self.post_influx(type_, ident, value, ts)
