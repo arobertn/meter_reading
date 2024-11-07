@@ -12,7 +12,14 @@ def main():
 		print( "Usage: ... <serial_port>")
 		sys.exit(0)
 
-	ser = serial.Serial(sys.argv[1], 115200, timeout=0.05, parity=serial.PARITY_NONE)
+	ser = serial.Serial(
+	    port='/dev/ttyUSB0',
+	    baudrate=115200,
+	    parity=serial.PARITY_NONE,
+	    #stopbits=serial.STOPBITS_ONE,
+	    #bytesize=serial.EIGHTBITS,
+	    timeout=0.05)
+
 	a = aidon(aidon_callback)
 
 	while(1):
